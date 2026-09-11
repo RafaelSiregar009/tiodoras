@@ -44,18 +44,6 @@ final perpanjanganAdminStreamProvider = StreamProvider<List<NasabahModel>>((
   return ref.watch(nasabahRepoProvider).streamPerpanjanganAdmin();
 });
 
-/// Legacy (gudang dihapus) — dibiarkan ada agar screens/gudang lama tetap
-/// bisa kompilasi, tidak lagi dipakai di alur utama.
-final antreianGudangStreamProvider = StreamProvider<List<NasabahModel>>((ref) {
-  ref.watch(profileProvider);
-  return ref.watch(nasabahRepoProvider).streamAntreianGudang();
-});
-
-final pelunasanGudangStreamProvider = StreamProvider<List<NasabahModel>>((ref) {
-  ref.watch(profileProvider);
-  return ref.watch(nasabahRepoProvider).streamPelunasanGudang();
-});
-
 // ── FUTURE (one-shot + invalidate) ───────────────────────────────────────
 
 /// FIX: sekarang realtime (StreamProvider) — lihat
@@ -96,16 +84,6 @@ final nasabahLunasProvider = StreamProvider<List<NasabahModel>>((ref) {
 final antreianAdminProvider = FutureProvider<List<NasabahModel>>((ref) async {
   ref.watch(profileProvider);
   return ref.watch(nasabahRepoProvider).getAntreianAdmin();
-});
-
-final antreianGudangProvider = FutureProvider<List<NasabahModel>>((ref) async {
-  ref.watch(profileProvider);
-  return ref.watch(nasabahRepoProvider).getAntreianGudang();
-});
-
-final allAgunanProvider = FutureProvider<List<NasabahModel>>((ref) async {
-  ref.watch(profileProvider);
-  return ref.watch(nasabahRepoProvider).getAllAgunan();
 });
 
 final allPetugasProvider = FutureProvider<List<ProfileModel>>((ref) async {
@@ -180,10 +158,7 @@ final nasabahJatuhTempoPetugasProvider =
       ref.watch(_refreshStatusJatuhTempoOnceProvider);
       final async = ref.watch(nasabahPetugasProvider);
       return async.whenData(
-        (list) =>
-            list.where((n) => n.isJatuhTempo || n.akanJatuhTempo).toList()
-              ..sort(
-                (a, b) => a.tanggalJatuhTempo.compareTo(b.tanggalJatuhTempo),
-              ),
+        (list) => list.where((n) => n.isJatuhTempo || n.akanJatuhTempo).toList()
+          ..sort((a, b) => a.tanggalJatuhTempo.compareTo(b.tanggalJatuhTempo)),
       );
     });
