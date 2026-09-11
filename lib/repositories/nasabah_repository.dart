@@ -30,12 +30,6 @@ class NasabahRepository {
     );
   }
 
-  Stream<List<NasabahModel>> streamAntreianGudang() {
-    return _streamNasabah().map(
-      (list) => list.where((n) => n.statusApproval == 'pending').toList(),
-    );
-  }
-
   Stream<List<NasabahModel>> streamPelunasanGudang() {
     return _streamNasabah().map(
       (list) => list
@@ -49,8 +43,9 @@ class NasabahRepository {
   /// 'pengajuan_pelunasan'), tanpa menunggu konfirmasi barang keluar gudang.
   Stream<List<NasabahModel>> streamPelunasanAdmin() {
     return _streamNasabah().map(
-      (list) =>
-          list.where((n) => n.statusPelunasan == 'pengajuan_pelunasan').toList(),
+      (list) => list
+          .where((n) => n.statusPelunasan == 'pengajuan_pelunasan')
+          .toList(),
     );
   }
 
@@ -72,7 +67,8 @@ class NasabahRepository {
   /// tab lalu kembali). Sekarang realtime, sama seperti antrean admin.
   Stream<List<NasabahModel>> streamAllNasabahAktif() {
     return _streamNasabah().map(
-      (list) => list.where((n) => n.statusApproval == 'approved_admin').toList(),
+      (list) =>
+          list.where((n) => n.statusApproval == 'approved_admin').toList(),
     );
   }
 
@@ -81,7 +77,9 @@ class NasabahRepository {
   Stream<List<NasabahModel>> streamNasabahLunas() {
     return _streamNasabah().map(
       (list) => list
-          .where((n) => n.statusApproval == 'approved_admin' && n.status == 'lunas')
+          .where(
+            (n) => n.statusApproval == 'approved_admin' && n.status == 'lunas',
+          )
           .toList(),
     );
   }
@@ -97,7 +95,9 @@ class NasabahRepository {
     return _streamNasabah().map(
       (list) => list
           .where(
-            (n) => n.petugasId == petugasId && n.statusApproval == 'approved_admin',
+            (n) =>
+                n.petugasId == petugasId &&
+                n.statusApproval == 'approved_admin',
           )
           .toList(),
     );
@@ -247,8 +247,10 @@ class NasabahRepository {
   }
 
   Future<List<ProfileModel>> getAllPetugas() async {
-    final data =
-        await _supabase.from('profiles').select().eq('role', 'petugas');
+    final data = await _supabase
+        .from('profiles')
+        .select()
+        .eq('role', 'petugas');
     return (data as List).map((e) => ProfileModel.fromMap(e)).toList();
   }
 
@@ -264,25 +266,6 @@ class NasabahRepository {
   }
 
   // ── GUDANG ───────────────────────────────────────────────────────────────
-
-  Future<List<NasabahModel>> getAntreianGudang() async {
-    final data = await _supabase
-        .from('nasabah')
-        .select('*, profiles(nama)')
-        .eq('status_approval', 'pending')
-        .order('created_at', ascending: false);
-    return (data as List).map((e) => NasabahModel.fromMap(e)).toList();
-  }
-
-  Future<List<NasabahModel>> getAllAgunan() async {
-    final data = await _supabase
-        .from('nasabah')
-        .select('*, profiles(nama)')
-        .eq('status_approval', 'approved_admin')
-        .neq('status', 'lunas')
-        .order('created_at', ascending: false);
-    return (data as List).map((e) => NasabahModel.fromMap(e)).toList();
-  }
 
   /// Cari agunan aktif di gudang berdasarkan kode unik.
   /// Hanya mengembalikan agunan yang masih berjalan (bukan lunas).
@@ -337,9 +320,7 @@ class NasabahRepository {
                 bytes,
                 fileOptions: const FileOptions(contentType: 'image/jpeg'),
               );
-          return _supabase.storage.from('agunan-photos').getPublicUrl(
-            fileName,
-          );
+          return _supabase.storage.from('agunan-photos').getPublicUrl(fileName);
         } on StorageException catch (e) {
           final isAuthGlitch =
               e.statusCode == '403' ||
@@ -366,8 +347,7 @@ class NasabahRepository {
       'detail_agunan': detailAgunan,
       'jumlah_pelunasan': jumlahPelunasan,
       'tanggal_masuk': tanggalMasuk.toIso8601String().split('T')[0],
-      'tanggal_jatuh_tempo':
-          tanggalJatuhTempo.toIso8601String().split('T')[0],
+      'tanggal_jatuh_tempo': tanggalJatuhTempo.toIso8601String().split('T')[0],
       'foto_url': fotoUrl,
       'foto_nasabah_url': fotoNasabahUrl,
     };
@@ -405,25 +385,31 @@ class NasabahRepository {
   }
 
   Future<void> konfirmasiGudang(String nasabahId) async {
-    await _supabase.from('nasabah').update({
-      'status_approval': 'approved_gudang',
-      'dikonfirmasi_gudang_at': DateTime.now().toIso8601String(),
-    }).eq('id', nasabahId);
+    await _supabase
+        .from('nasabah')
+        .update({
+          'status_approval': 'approved_gudang',
+          'dikonfirmasi_gudang_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', nasabahId);
   }
 
   Future<void> approveAdmin(String nasabahId) async {
-    await _supabase.from('nasabah').update({
-      'status_approval': 'approved_admin',
-      'disetujui_admin_at': DateTime.now().toIso8601String(),
-      'status': 'berjalan',
-    }).eq('id', nasabahId);
+    await _supabase
+        .from('nasabah')
+        .update({
+          'status_approval': 'approved_admin',
+          'disetujui_admin_at': DateTime.now().toIso8601String(),
+          'status': 'berjalan',
+        })
+        .eq('id', nasabahId);
   }
 
   Future<void> tolakNasabah(String nasabahId, String catatan) async {
-    await _supabase.from('nasabah').update({
-      'status_approval': 'rejected',
-      'catatan_penolakan': catatan,
-    }).eq('id', nasabahId);
+    await _supabase
+        .from('nasabah')
+        .update({'status_approval': 'rejected', 'catatan_penolakan': catatan})
+        .eq('id', nasabahId);
   }
 
   /// Admin: tolak pengajuan pelunasan (tebus). Nasabah kembali ke kondisi
@@ -431,10 +417,13 @@ class NasabahRepository {
   /// supaya petugas tahu kenapa ditolak — tampil sebagai banner merah di
   /// dashboard petugas. Petugas bisa mengajukan lagi kapan saja setelahnya.
   Future<void> tolakPelunasan(String nasabahId, String catatan) async {
-    await _supabase.from('nasabah').update({
-      'status_pelunasan': 'ditolak_pelunasan',
-      'catatan_penolakan': catatan,
-    }).eq('id', nasabahId);
+    await _supabase
+        .from('nasabah')
+        .update({
+          'status_pelunasan': 'ditolak_pelunasan',
+          'catatan_penolakan': catatan,
+        })
+        .eq('id', nasabahId);
   }
 
   /// Admin: tolak pengajuan perpanjangan. Baris 'pending' di tabel
@@ -446,36 +435,37 @@ class NasabahRepository {
         .update({'status': 'rejected'})
         .eq('nasabah_id', nasabahId)
         .eq('status', 'pending');
-    await _supabase.from('nasabah').update({
-      'status_pelunasan': 'ditolak_perpanjangan',
-      'catatan_penolakan': catatan,
-    }).eq('id', nasabahId);
+    await _supabase
+        .from('nasabah')
+        .update({
+          'status_pelunasan': 'ditolak_perpanjangan',
+          'catatan_penolakan': catatan,
+        })
+        .eq('id', nasabahId);
   }
 
   /// Petugas: ajukan pelunasan → nunggu gudang konfirmasi barang keluar
   Future<void> ajukanPelunasan(String nasabahId) async {
-    await _supabase.from('nasabah').update({
-      'status_pelunasan': 'pengajuan_pelunasan',
-    }).eq('id', nasabahId);
+    await _supabase
+        .from('nasabah')
+        .update({'status_pelunasan': 'pengajuan_pelunasan'})
+        .eq('id', nasabahId);
   }
 
   /// Gudang: konfirmasi barang keluar → lanjut ke admin
-  Future<void> konfirmasiPelunasanGudang(String nasabahId) async {
-    await _supabase.from('nasabah').update({
-      'status_pelunasan': 'konfirmasi_gudang',
-    }).eq('id', nasabahId);
-  }
-
   /// Admin: setujui pelunasan → status lunas
   Future<void> approveAdminPelunasan(String nasabahId) async {
-    await _supabase.from('nasabah').update({
-      'status': 'lunas',
-      'status_pelunasan': 'selesai',
-      // FIX (fitur baru): catat KAPAN benar-benar lunas — dipakai untuk
-      // mengelompokkan "Storting" per bulan di halaman detail petugas
-      // (lihat migrasi 20260910_add_monthly_report_support.sql).
-      'tanggal_lunas': DateTime.now().toIso8601String(),
-    }).eq('id', nasabahId);
+    await _supabase
+        .from('nasabah')
+        .update({
+          'status': 'lunas',
+          'status_pelunasan': 'selesai',
+          // FIX (fitur baru): catat KAPAN benar-benar lunas — dipakai untuk
+          // mengelompokkan "Storting" per bulan di halaman detail petugas
+          // (lihat migrasi 20260910_add_monthly_report_support.sql).
+          'tanggal_lunas': DateTime.now().toIso8601String(),
+        })
+        .eq('id', nasabahId);
   }
 
   /// Petugas: ajukan perpanjangan → tunggu admin
@@ -491,9 +481,10 @@ class NasabahRepository {
       'jatuh_tempo_baru': jatuhTempoBaru.toIso8601String().split('T')[0],
       'status': 'pending',
     });
-    await _supabase.from('nasabah').update({
-      'status_pelunasan': 'pengajuan_perpanjangan',
-    }).eq('id', nasabahId);
+    await _supabase
+        .from('nasabah')
+        .update({'status_pelunasan': 'pengajuan_perpanjangan'})
+        .eq('id', nasabahId);
   }
 
   /// Admin: setujui perpanjangan
@@ -535,11 +526,14 @@ class NasabahRepository {
         .eq('nasabah_id', nasabahId)
         .eq('status', 'pending');
 
-    await _supabase.from('nasabah').update({
-      'tanggal_jatuh_tempo': jatuhTempoBaru,
-      'status': 'berjalan',
-      'status_pelunasan': null,
-    }).eq('id', nasabahId);
+    await _supabase
+        .from('nasabah')
+        .update({
+          'tanggal_jatuh_tempo': jatuhTempoBaru,
+          'status': 'berjalan',
+          'status_pelunasan': null,
+        })
+        .eq('id', nasabahId);
   }
 
   /// FIX (fitur baru): seluruh biaya perpanjangan yang SUDAH disetujui admin
@@ -552,7 +546,9 @@ class NasabahRepository {
   getBiayaPerpanjanganApproved(String petugasId) async {
     final data = await _supabase
         .from('perpanjangan')
-        .select('nasabah_id, biaya_perpanjangan, approved_at, nasabah!inner(petugas_id)')
+        .select(
+          'nasabah_id, biaya_perpanjangan, approved_at, nasabah!inner(petugas_id)',
+        )
         .eq('status', 'approved')
         .eq('nasabah.petugas_id', petugasId);
 
@@ -718,7 +714,10 @@ class NasabahRepository {
   /// konsisten dengan alasan kenapa akun petugas dikelola lewat sana.
   Future<String> uploadAvatar(Uint8List bytes, String labelForFileName) async {
     final ts = DateTime.now().millisecondsSinceEpoch;
-    final safeLabel = labelForFileName.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final safeLabel = labelForFileName.replaceAll(
+      RegExp(r'[^a-zA-Z0-9_-]'),
+      '_',
+    );
     final fileName = 'avatar_${safeLabel}_$ts.jpg';
     // FIX: sama seperti retry di tambahNasabah() — percobaan pertama upload
     // Storage kadang gagal 403 RLS tepat setelah sesi baru login.

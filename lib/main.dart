@@ -8,8 +8,10 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'supabase_config.dart';
+import 'providers/auth_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/device_verify_screen.dart';
 import 'screens/petugas/petugas_dashboard.dart';
 import 'screens/petugas/petugas_nasabah_list.dart';
 import 'screens/petugas/petugas_tambah_nasabah.dart';
@@ -23,13 +25,6 @@ import 'screens/admin/admin_approval.dart';
 import 'screens/admin/admin_nasabah_petugas.dart';
 import 'screens/admin/admin_kelola_petugas.dart';
 
-// FIX (fitur baru): handler ini WAJIB berupa top-level function (bukan
-// method di dalam class) dan ditandai @pragma('vm:entry-point') — dipanggil
-// Android di proses/isolate terpisah saat ada notifikasi masuk sementara
-// aplikasi sedang di-background/tertutup total. Notifikasi "notification"
-// payload dari server sebenarnya sudah otomatis ditampilkan Android sendiri
-// tanpa handler ini, tapi tetap wajib didaftarkan supaya plugin
-// firebase_messaging tidak melempar warning saat init.
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {}
 
@@ -37,21 +32,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('id_ID', null);
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
-  // FIX (fitur baru): setup Firebase untuk push notification. Dibungkus
-  // try/catch supaya aplikasi TETAP BISA JALAN (login, dll) walau
-  // google-services.json belum terpasang atau HP tidak punya Google Play
-  // Services — notifikasi jadi fitur opsional, bukan syarat aplikasi bisa
-  // dipakai sama sekali.
-  //
-  // FIX (bug baru): dilewati SAMA SEKALI di web (kIsWeb) — Firebase di
-  // project ini HANYA dikonfigurasi untuk Android (google-services.json +
-  // plugin Gradle), tidak ada konfigurasi Firebase untuk web. Kalau
-  // dipanggil tanpa konfigurasi web, Firebase.initializeApp() bisa
-  // menggantung TANPA batas waktu (bukan langsung melempar error), jadi
-  // try/catch di bawah tidak menolong — main() tidak pernah sampai ke
-  // runApp(), dan `flutter run -d chrome` jadi loading terus selamanya.
-  // Push notification memang didesain khusus untuk HP Android (APK), jadi
-  // melewati Firebase di web tidak menghilangkan fitur apa pun di sana.
   if (!kIsWeb) {
     try {
       await Firebase.initializeApp();
@@ -63,14 +43,18 @@ void main() async {
   runApp(const ProviderScope(child: MyApp()));
 }
 
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final router = GoRouter(
-  // FIX (fitur baru): dulu '/login' — sekarang mulai dari SplashScreen
-  // supaya sesi yang sudah tersimpan otomatis lanjut ke dashboard tanpa
-  // perlu login ulang setiap kali app dibuka (lihat splash_screen.dart).
+  navigatorKey: rootNavigatorKey,
   initialLocation: '/splash',
   routes: [
     GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
     GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+    GoRoute(
+      path: '/device-verify',
+      builder: (_, __) => const DeviceVerifyScreen(),
+    ),
 
     // ── Petugas
     GoRoute(
@@ -89,7 +73,6 @@ final router = GoRouter(
       path: '/petugas/antreian',
       builder: (_, __) => const PetugasAntreian(),
     ),
-    // FIX: sebelumnya route ini didaftarkan DUA KALI
     GoRoute(
       path: '/petugas/jatuh-tempo',
       builder: (_, __) => const PetugasJatuhTempo(),
@@ -112,10 +95,7 @@ final router = GoRouter(
       path: '/admin/jatuh-tempo',
       builder: (_, __) => const AdminJatuhTempo(),
     ),
-    GoRoute(
-      path: '/admin/approval',
-      builder: (_, __) => const AdminApproval(),
-    ),
+    GoRoute(path: '/admin/approval', builder: (_, __) => const AdminApproval()),
     GoRoute(
       path: '/admin/nasabah-petugas/:petugasId',
       builder: (_, state) =>
@@ -133,6 +113,75 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Reaksi global terhadap event perangkat (ditendang / minta kode).
+    ref.listen<DeviceGuardState>(deviceGuardProvider, (prev, next) {
+      final ctx = rootNavigatorKey.currentContext;
+      if (ctx == null) return;
+
+      if (next.kicked && !(prev?.kicked ?? false)) {
+        router.go('/login');
+        showDialog(
+          context: ctx,
+          builder: (_) => AlertDialog(
+            title: const Text('Sesi Berakhir'),
+            content: const Text(
+              'Anda telah keluar karena akun ini login di perangkat lain.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () =>
+                    Navigator.pop(rootNavigatorKey.currentContext!),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      } else if (next.takeoverCode != null &&
+          next.takeoverCode != prev?.takeoverCode) {
+        showDialog(
+          context: ctx,
+          builder: (_) => AlertDialog(
+            title: const Text('Permintaan Login Perangkat Baru'),
+            content: Text(
+              'Perangkat baru (${next.takeoverLabel ?? 'tidak diketahui'}) '
+              'ingin masuk ke akun ini.\n\n'
+              'Berikan kode verifikasi ini ke perangkat tersebut:\n',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () =>
+                    Navigator.pop(rootNavigatorKey.currentContext!),
+                child: const Text('Tutup'),
+              ),
+            ],
+          ),
+        );
+        // Tampilkan kode besar lewat dialog kedua supaya jelas terbaca.
+        showDialog(
+          context: ctx,
+          builder: (_) => AlertDialog(
+            title: const Text('Kode Verifikasi'),
+            content: Text(
+              next.takeoverCode!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 40,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 8,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () =>
+                    Navigator.pop(rootNavigatorKey.currentContext!),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    });
+
     return MaterialApp.router(
       title: 'PT TIODORAS L.',
       debugShowCheckedModeBanner: false,

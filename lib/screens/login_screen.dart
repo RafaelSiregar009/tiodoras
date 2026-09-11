@@ -33,17 +33,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
     setState(() => _loading = true);
     try {
-      final role = await ref
+      final result = await ref
           .read(profileProvider.notifier)
           .login(_emailCtrl.text.trim(), _passCtrl.text.trim());
       if (!mounted) return;
-      switch (role) {
+      if (result.needVerification) {
+        context.push('/device-verify');
+        return;
+      }
+      switch (result.role) {
         case 'admin':
           context.go('/admin/dashboard');
           break;
         default:
-          // Hanya role admin & petugas yang berlaku sekarang. Role apa pun
-          // selain admin diarahkan ke dashboard petugas.
           context.go('/petugas/dashboard');
       }
     } on AuthApiException catch (e) {

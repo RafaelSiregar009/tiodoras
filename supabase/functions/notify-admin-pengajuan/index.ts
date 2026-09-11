@@ -154,10 +154,14 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true, sent: 0, note: "Tidak ada admin dengan fcm_token" });
     }
 
-    const judul = jenis === "pelunasan"
+      const judul = jenis === "pelunasan"
       ? "Pengajuan Pelunasan Baru"
-      : "Pengajuan Perpanjangan Baru";
-    const pesan = `${petugasNama} mengajukan ${jenis} untuk nasabah ${nasabahNama}`;
+      : jenis === "perpanjangan"
+      ? "Pengajuan Perpanjangan Baru"
+      : "Pengajuan Nasabah Baru";
+    const pesan = jenis === "nasabah_baru"
+      ? `${petugasNama} mengajukan nasabah baru: ${nasabahNama}`
+      : `${petugasNama} mengajukan ${jenis} untuk nasabah ${nasabahNama}`;
 
     const accessToken = await getGoogleAccessToken();
     const projectId = Deno.env.get("FCM_PROJECT_ID");
