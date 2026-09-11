@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "239636024886",
+    "project_id": "tiodoras",
+    "storage_bucket": "tiodoras.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:239636024886:android:557d62921c2ee5fd289297",
+        "android_client_info": {
+          "package_name": "com.example.tiodoras_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBwdiA7RZS1n_TIOqrFh0PB0_V26o9Ff44"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
